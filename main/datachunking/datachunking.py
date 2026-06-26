@@ -1,10 +1,14 @@
 import pypdf
+from unstructured.partition.auto import partition
 from langchain_text_splitters import RecursiveCharacterTextSplitter
 from langchain_core.documents import Document
 
 def load_pdf_pages(file_path: str):
     reader = pypdf.PdfReader(file_path) #Reads file path
-    return reader.is_encrypted
+    page = reader.pages[2]
+    text = page.extract_text()
+    return text
+
 """
 #PDF scanner to load the pdfs
 def load_pdf_pages(file_path: str) -> list[Document]:
@@ -21,16 +25,11 @@ def load_pdf_pages(file_path: str) -> list[Document]:
     ]
 """
 
-#Text splitter with default text chunking
-text_splitting = RecursiveCharacterTextSplitter(
-    chunk_size= 100, #Chunk max size based off length func
-    chunk_overlap = 20, #The amrgin of overlapping chunks, helps to find context across chunks
-    length_function =len, #Function that determines chunk size
-    is_separator_regex=False, #INterpret the basics as regex
-)
+elements = partition("C:/Users/tamilsk/Downloads/pdfs_clean/COR.HSE.TRN.001.EN.00.Corporate HSE Orientation.pdf")
 
 if __name__ == "__main__":
-    file_path = "C:/Users/tamilsk/OneDrive - Colas/COR.HSE.TRN.001.EN.00.Corporate HSE Orientation.pdf"
+    file_path = "C:/Users/tamilsk/Downloads/pdfs_clean/COR.HSE.TRN.001.EN.00.Corporate HSE Orientation.pdf"
     docs = load_pdf_pages(file_path)
     # chunky = text_splitting.create_documents(docs)
-    print(docs)
+    # print(docs)
+    print("\n\n".join([str(el) for el in elements]))
