@@ -1,22 +1,9 @@
 import pikepdf
-from pathlib import Path
 
-SRC = Path(r"C:/Users/tamilsk/OneDrive - Colas/Desktop/VsCode/Knowledge-Bot/Documents")
-DST = Path(r"C:/Users/tamilsk/Downloads/pdfs_clean")
-DST.mkdir(parents=True, exist_ok=True)
-
-print(f"SRC exists?  {SRC.exists()}")
-print(f"DST created: {DST.resolve()}")
-
-pdfs = list(SRC.glob("*.pdf"))
-print(f"Found {len(pdfs)} PDF(s) in SRC")
-
-for pdf in pdfs:
-    try:
-        with pikepdf.open(pdf) as f:
-            f.save(DST / pdf.name)
-        print(f"OK   {pdf.name}")
-    except Exception as e:
-        print(f"FAIL {pdf.name} -> {e}")
-
-print("done")
+p = r"C:/Users/tamilsk/OneDrive - Colas/pdfs_clean/COR.HSE.TRN.001.EN.00.Corporate HSE Orientation.pdf"
+try:
+    with pikepdf.open(p) as pdf:        # empty password by default
+        print("Opens fine. is_encrypted =", pdf.is_encrypted)
+        print("No password needed — restrictions strip on save.")
+except pikepdf.PasswordError:
+    print("This one genuinely needs an OPEN password.")

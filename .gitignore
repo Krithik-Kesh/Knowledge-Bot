@@ -1,5 +1,5 @@
 #Ignore the imports file
-imports/
+main/datachunking/imports/
 
 #ignore python enviornment
 .venv/
