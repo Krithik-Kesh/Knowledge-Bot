@@ -1,5 +1,5 @@
 from FlagEmbedding import FlagModel
-from datachunking import lst
+from plantkb.ingest.partition import lst
 
 sentences_1 = lst[0]
 sentences_2 = lst[1]

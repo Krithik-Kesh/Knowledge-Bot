@@ -1,6 +1,7 @@
 from pathlib import Path
 from unstructured.partition.pdf import partition_pdf
 from unstructured.partition.pptx import partition_pptx
+#docs
 
 folder_path = Path("data/imports/")
 
