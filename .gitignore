@@ -1,0 +1,5 @@
+#Ignore the imports file
+data/imports/
+
+#ignore python enviornment
+.venv/
