@@ -1,5 +1,5 @@
 #Ignore the imports file
-main/data/imports/
+data/imports/
 
 #ignore python enviornment
 .venv/
