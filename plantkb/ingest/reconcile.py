@@ -71,8 +71,6 @@ def _ingest_source(collection, source: str, root: Path, embed_fn) -> None:
         ids=ids, documents=texts, embeddings=embeddings, metadatas=metadatas
     )
 
-
-
 def reconcile(embed_fn) -> m.Diff:
     """Run one reconcile pass. `embed_fn(list[str]) -> list[vector]` is the
     Qwen3 document-embedding function (document mode, not query mode)."""

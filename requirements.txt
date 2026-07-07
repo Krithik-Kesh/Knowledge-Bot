@@ -1,0 +1,5 @@
+chromadb
+sentence-transformers
+torch
+unstructured
+python-dotenv

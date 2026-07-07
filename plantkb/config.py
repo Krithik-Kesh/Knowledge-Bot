@@ -4,7 +4,7 @@ from pathlib import Path
 
 #load_dotenv()  # reads .env when present
 
-WATCHED_FOLDER = Path(r"C:/Users/tamilsk/Colas/HSE - Documents")
+WATCHED_FOLDER = Path(r"C:/Users/tamilsk/Colas/HSE - HSE Orientations")
 DOCS = Path(os.environ.get("DOCS", "docs")) # folder to scan for source files
 DATA_DIR       = Path(os.environ.get("DATA_DIR", "data"))
 CHROMA_DIR     = DATA_DIR / "chroma_db"
