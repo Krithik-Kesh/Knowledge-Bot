@@ -8,5 +8,5 @@ doc_type
 language
 """
 
-from chunktitioning import chunks
+from plantkb.ingest.decrypt import chunks
 

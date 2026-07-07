@@ -21,7 +21,6 @@ from pathlib import Path
 from plantkb import config
 from plantkb.ingest import manifest as m
 
-from plantkb.ingest.decrypt import decrypt          # decrypt(path) -> path | bytes
 from plantkb.ingest.partition import partition      # partition(path) -> list[chunk]
 from plantkb.ingest.metadata import stamp_metadata  # stamp_metadata(chunks, source) -> chunks
 
@@ -46,15 +45,14 @@ def _delete_source(collection, source: str) -> None:
 
 
 def _ingest_source(collection, source: str, root: Path, embed_fn) -> None:
-    """partition -> stamp -> embed -> upsert, for a single file.
+    """Partition -> stamp -> embed -> upsert, for a single file.
 
     `source` is the manifest key (relative POSIX path); the real file lives at
     root / source. The same `source` string is stamped into every chunk's
     metadata so it can be found again on change/delete.
     """
     abs_path = root / source
-    prepared = decrypt(abs_path)                 # pikepdf step
-    chunks = partition(prepared)                 # unstructured routing
+    chunks = partition(abs_path)                 # unstructured routing
     chunks = stamp_metadata(chunks, source=source)  # ensure metadata["source"] = source
 
     if not chunks:
