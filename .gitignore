@@ -1,5 +1,11 @@
 #Ignore the imports file
 data/
 
+#Ignore Perms
+perms/
+
 #ignore python enviornment
-.venv/
+.venv
+
+#api keys
+.env
