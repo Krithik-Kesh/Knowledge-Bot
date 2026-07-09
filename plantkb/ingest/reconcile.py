@@ -5,8 +5,8 @@ vector DB, overwrite manifest. Task Scheduler calls scripts/run_reconcile.py,
 which calls reconcile() here.
 
 Flow per run:
-    1. scan_folder()      -> what exists now
-    2. load_manifest()    -> what existed last run
+    1. scan_folder(): Current state of the watched folder (in-memory only)
+    2. load_manifest(): previous baseline
     3. compute_diff()     -> added / changed / deleted  (in-memory only)
     4. for added|changed: delete-old-chunks then re-ingest -> vector DB
     5. for deleted:       delete chunks                    -> vector DB
@@ -38,11 +38,9 @@ def _chunk_id(source: str, i: int) -> str:
     file overwrites cleanly and delete-by-source is exact."""
     return f"{source}::{i}"
 
-
 def _delete_source(collection, source: str) -> None:
     """Remove every chunk belonging to one source file."""
     collection.delete(where={"source": source})
-
 
 def _ingest_source(collection, source: str, root: Path, embed_fn) -> None:
     """Partition -> stamp -> embed -> upsert, for a single file.
@@ -86,7 +84,6 @@ def reconcile(embed_fn) -> m.Diff:
     previous = m.load_manifest(config.MANIFEST_PATH)
     diff = m.compute_diff(current, previous)
 
-
     if diff.is_empty:
         logger.info("nothing changed; vector DB already in sync")
         return diff
@@ -110,3 +107,4 @@ def reconcile(embed_fn) -> m.Diff:
         len(diff.added), len(diff.changed), len(diff.deleted),
     )
     return diff
+

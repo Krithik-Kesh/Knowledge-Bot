@@ -2,7 +2,7 @@
 index.py
 
 First-time bulk load: run reconcile() once against an empty manifest, so
-every file in WATCHED_FOLDER is treated as added. Safe to re-run -- later
+every file in WATCHED_FOLDER is treated as added. Safe to re-run, later
 runs just report an empty diff via scripts/run_reconcile.py instead.
 """
 
