@@ -31,7 +31,7 @@ def _get_collection():
     """Chroma collection via PersistentClient (embedded, on local disk)."""
     import chromadb
     client = chromadb.PersistentClient(path=str(config.CHROMA_DIR))
-    return client.get_or_create_collection(config.COLLECTION)
+    return client.get_or_create_collection(config.COLLECTION, embedding_function="my-ef")  # registered in embed.py
 
 def _chunk_id(source: str, i: int) -> str:
     """Deterministic chunk id from source + index, so a re-ingest of the same
