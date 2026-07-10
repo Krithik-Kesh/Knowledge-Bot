@@ -20,9 +20,6 @@ from __future__ import annotations
 
 from pathlib import Path
 
-DEFAULT_LANGUAGE = "en"
-
-
 def _file_type(source: str) -> str:
     return Path(source).suffix.lstrip(".").lower()
 
@@ -31,6 +28,10 @@ def _parse_doc_id(stem: str) -> dict[str, str]:
     """Parse LOCATION.OWNER.TYPE.NUMBER.LANGUAGE.REVISION.Title from a
     filename stem (no extension). Falls back to "unknown" fields for any
     file that doesn't follow the convention."""
+    if 'FR' in stem.upper():
+        DEFAULT_LANGUAGE = "fr"
+    else:
+        DEFAULT_LANGUAGE = "en"
     parts = stem.split(".")
     if len(parts) < 7:
         return {

@@ -51,7 +51,7 @@ def _ingest_source(collection, source: str, root: Path, embed_fn) -> None:
     """
     abs_path = root / source
     chunks = partition(abs_path)                 # unstructured routing
-    chunks = stamp_metadata(chunks, source=source)  # ensure metadata["source"] = source
+    chunks = stamp_metadata(chunks, source=source)  
 
     if not chunks:
         # Image-only PDF that decrypted but yielded no text -- log and skip.
