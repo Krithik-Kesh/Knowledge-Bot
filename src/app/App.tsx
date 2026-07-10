@@ -1,6 +1,6 @@
 import { useState, useEffect, useRef } from "react";
-import logoImg from "@/imports/Home1-1/b3587d2f40f699fe69613ac90a5845c929850121.png";
-import micImg from "@/imports/Home1-1/79323499d2d11169443db3180c13e1ae042ad6fe.png";
+import logoImg from "@/imports/MCA-2021-white with red.png";
+import micImg from "@/imports/microphone_symbol.png";
 
 type Page = "home" | "chat";
 
@@ -142,7 +142,7 @@ export default function App() {
     cancelAnimationFrame(animFrameRef.current);
     if (responseIntervalRef.current) clearInterval(responseIntervalRef.current);
     streamRef.current?.getTracks().forEach((t) => t.stop());
-    audioCtxRef.current?.close().catch(() => {});
+    audioCtxRef.current?.close().catch(() => { });
     window.speechSynthesis?.cancel();
     setGradient(0);
   };
@@ -190,7 +190,7 @@ export default function App() {
   const stopMicAnalysis = () => {
     cancelAnimationFrame(animFrameRef.current);
     streamRef.current?.getTracks().forEach((t) => t.stop());
-    audioCtxRef.current?.close().catch(() => {});
+    audioCtxRef.current?.close().catch(() => { });
     audioCtxRef.current = null;
     streamRef.current = null;
     setGradient(0);
@@ -211,7 +211,7 @@ export default function App() {
         t += e.results[i][0].transcript;
       setUserPrompt(t);
     };
-    r.onerror = (_e: any) => {};
+    r.onerror = (_e: any) => { };
     r.start();
     recognitionRef.current = r;
   };
@@ -333,7 +333,7 @@ export default function App() {
           <img
             src={logoImg}
             alt="McAsphalt"
-            className="h-[70px] object-contain"
+            className="h-[50px] object-contain"
           />
           <div className="w-full max-w-[560px]">
             <svg className="w-full" height="3">
@@ -350,7 +350,7 @@ export default function App() {
             </svg>
           </div>
           <p className="text-white font-semibold text-[23px] tracking-[-0.46px] text-center leading-snug">
-            McAsphalt Operations Assistant
+            McAngela Operations Assistant
           </p>
         </div>
 
@@ -368,8 +368,8 @@ export default function App() {
                   transform: micPressed
                     ? "scale(0.87)"
                     : micActive
-                    ? "scale(1.07)"
-                    : "scale(1)",
+                      ? "scale(1.07)"
+                      : "scale(1)",
                   transition:
                     "transform 0.15s cubic-bezier(0.34, 1.56, 0.64, 1)",
                 }}
