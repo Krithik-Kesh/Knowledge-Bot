@@ -58,6 +58,13 @@ def _parse_doc_id(stem: str) -> dict[str, str]:
     }
 
 
+def detect_language(source: str) -> str:
+    """Language field parsed from the doc-ID filename convention (same logic
+    stamp_metadata uses), exposed standalone so reconcile.py can skip a file
+    before the expensive partition/embed steps rather than after."""
+    return _parse_doc_id(Path(source).stem)["language"]
+
+
 def stamp_metadata(chunks, source: str):
     """Attach source, file_type, and parsed doc-ID fields to every chunk."""
     doc_id_fields = _parse_doc_id(Path(source).stem)

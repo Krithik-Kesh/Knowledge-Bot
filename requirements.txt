@@ -3,3 +3,4 @@ sentence-transformers
 torch
 unstructured
 python-dotenv
+rank_bm25

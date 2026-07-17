@@ -22,16 +22,24 @@ from plantkb import config
 from plantkb.ingest import manifest as m
 
 from plantkb.ingest.partition import partition      # partition(path) -> list[chunk]
-from plantkb.ingest.metadata import stamp_metadata  # stamp_metadata(chunks, source) -> chunks
+from plantkb.ingest.metadata import stamp_metadata, detect_language  # stamp_metadata(chunks, source) -> chunks
+
+# Pilot is English-only: French sources are never partitioned/embedded/stored,
+# so their vectors don't dilute retrieval for an audience that can't use them.
+INGEST_LANGUAGES = {"en"}
 
 logger = logging.getLogger(__name__)
 
 # Reconcile: scan folder, diff against manifest, update vector DB, save manifest
 def _get_collection():
-    """Chroma collection via PersistentClient (embedded, on local disk)."""
+    """Chroma collection via PersistentClient (embedded, on local disk).
+
+    No embedding_function is passed -- every write in this module supplies
+    embeddings= explicitly (see _ingest_source), so Chroma never needs to
+    embed anything itself for this collection."""
     import chromadb
     client = chromadb.PersistentClient(path=str(config.CHROMA_DIR))
-    return client.get_or_create_collection(config.COLLECTION, embedding_function="my-ef")  # registered in embed.py
+    return client.get_or_create_collection(config.COLLECTION)
 
 def _chunk_id(source: str, i: int) -> str:
     """Deterministic chunk id from source + index, so a re-ingest of the same
@@ -97,6 +105,9 @@ def reconcile(embed_fn) -> m.Diff:
 
     #Tale the added and changed files, delete their old chunks, then re-ingest
     for source in sorted(diff.added | diff.changed):
+        if detect_language(source) not in INGEST_LANGUAGES:
+            logger.info("skipping non-English source: %s", source)
+            continue
         logger.info("%s: %s", "changed" if source in diff.changed else "added", source)
         _ingest_source(collection, source, root, embed_fn)
 

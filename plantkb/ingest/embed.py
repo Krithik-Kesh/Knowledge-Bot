@@ -19,34 +19,21 @@ import os
 os.environ.setdefault("HF_HUB_OFFLINE", "1")
 
 from functools import lru_cache
+from typing import List
+
 from sentence_transformers import SentenceTransformer
 from plantkb import config
-
-from typing import Dict, Any
-from chromadb import EmbeddingFunction, Embeddings
-from chromadb.utils.embedding_functions import register_embedding_function
 
 @lru_cache(maxsize=1)
 def _model() -> SentenceTransformer:
     return SentenceTransformer(config.EMBED_MODEL)
 
-@register_embedding_function
-class EmbedFunction(EmbeddingFunction):
+def embed_documents(texts: List[str]) -> List[List[float]]:
+    """Document-mode embedding used by reconcile.py's ingest path.
 
-    def __init__(self, model):
-        self.model = model
-
-    #embed the document
-    def __call__(self, texts: str) -> Embeddings:
-        return self.model.encode(texts, convert_to_numpy=True).tolist()
-
-    @staticmethod
-    def name() -> str:
-        return "my-ef"
-
-    def get_config(self) -> Dict[str, Any]:
-        return dict(model=self.model)
-
-    @staticmethod
-    def build_from_config(config: Dict[str, Any]) -> "EmbeddingFunction":
-        return EmbedFunction(config.EMBED_MODEL)
+    No prompt_name is applied -- see module docstring's asymmetry rule.
+    Vectors are always passed to Chroma explicitly (add/upsert/query
+    embeddings=...); Chroma's own embedding-function hook is never used,
+    so there's no Chroma-facing wrapper class here.
+    """
+    return _model().encode(texts, normalize_embeddings=True).tolist()
