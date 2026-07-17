@@ -1,5 +1,18 @@
 #Ignore the imports file
-data/imports/
+data/
+
+#Ignore the config file
+plantkb/config.py
+
+#Ignore Perms
+perms/
+
+#ignore compiled bytecode cache
+__pycache__/
+*.pyc
 
 #ignore python enviornment
-.venv/
+.venv
+
+#api keys
+.env
