@@ -4,7 +4,7 @@ from pathlib import Path
 from dotenv import load_dotenv
 load_dotenv()  # reads .env when present
 
-WATCHED_FOLDER = Path(r"C:/Users/tamilsk/Colas/HSE - HSE Orientations")
+WATCHED_FOLDER = Path(r"C:/temp_crawled_sharepoint")
 DOCS = Path(os.environ.get("DOCS", "docs")) # folder to scan for source files
 DATA_DIR       = Path(os.environ.get("DATA_DIR", "data")) # directory for storing data
 CHROMA_DIR     = DATA_DIR / "chroma_db"
