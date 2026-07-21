@@ -104,18 +104,30 @@ def reconcile(embed_fn) -> m.Diff:
         _delete_source(collection, source)
 
     #Tale the added and changed files, delete their old chunks, then re-ingest
+    failed: set[str] = set()
     for source in sorted(diff.added | diff.changed):
         if detect_language(source) not in INGEST_LANGUAGES:
             logger.info("skipping non-English source: %s", source)
             continue
         logger.info("%s: %s", "changed" if source in diff.changed else "added", source)
-        _ingest_source(collection, source, root, embed_fn)
+        try:
+            _ingest_source(collection, source, root, embed_fn)
+        except Exception:
+            # A single unreadable/corrupt file (e.g. a truncated .docx that is
+            # not a valid ZIP) must not abort the whole run -- that's how a
+            # partial ingest gets stranded with no manifest. Log it and carry
+            # on; excluding it from the baseline below keeps it "added" so the
+            # next run retries it instead of recording it as done.
+            failed.add(source)
+            logger.exception("failed to ingest %s (skipped; will retry next run)", source)
 
-    # only now, after the DB is updated, commit the new baseline
-    m.save_manifest(config.MANIFEST_PATH, current)
+    # only now, after the DB is updated, commit the new baseline -- but NOT the
+    # files that failed, so the manifest keeps reflecting success only.
+    baseline = {k: v for k, v in current.items() if k not in failed}
+    m.save_manifest(config.MANIFEST_PATH, baseline)
     logger.info(
-        "reconcile done: +%d ~%d -%d",
-        len(diff.added), len(diff.changed), len(diff.deleted),
+        "reconcile done: +%d ~%d -%d (failed %d)",
+        len(diff.added), len(diff.changed), len(diff.deleted), len(failed),
     )
     return diff
 

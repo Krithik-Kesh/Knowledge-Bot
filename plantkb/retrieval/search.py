@@ -38,15 +38,17 @@ def _get_collection():
     client = chromadb.PersistentClient(path=str(config.CHROMA_DIR))
     return client.get_collection(name=config.COLLECTION)
 
+#runs once ever in the lifetime
+
 
 @lru_cache(maxsize=1)
 def _corpus():
-    """Every chunk's id/text/metadata, cached for the life of the process.
+    """Every chunk's id/text/metadata, cached..
 
     Backs both the BM25 index and the latest-revision lookup. Rebuilding
     per query would be wasteful once this runs inside a long-lived web app;
     the tradeoff is that this cache goes stale if reconcile.py writes new
-    chunks while the process is alive -- acceptable for now since ingest
+    chunks while the process is alive acceptable for now since ingest
     and serving run as separate processes.
     """
     got = _get_collection().get(include=["documents", "metadatas"])
