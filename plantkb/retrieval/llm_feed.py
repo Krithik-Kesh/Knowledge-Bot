@@ -34,7 +34,7 @@ How to answer:
    your answer on them and cite each claim with its tag, e.g. [S1], [S3].
 2. If the SOURCES do not contain the answer, you MAY answer from your own
    general knowledge — but you MUST:
-     • begin that part with: "⚠️ Not in the HSE library — general knowledge:"
+     • begin that part with: "⚠️ Not in the MCA library, using general knowledge:"
      • cite NO document tags for it (never attach [S#] to something the
        sources didn't say).
 3. Never invent a citation, and never present general knowledge as if it

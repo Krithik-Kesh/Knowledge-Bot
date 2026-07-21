@@ -16,6 +16,7 @@ Flow per run:
 from __future__ import annotations
 
 import logging
+import math
 from pathlib import Path
 
 from plantkb import config
@@ -70,6 +71,25 @@ def _ingest_source(collection, source: str, root: Path, embed_fn) -> None:
     ids = [_chunk_id(source, i) for i in range(len(chunks))]
     metadatas = [dict(c.metadata, source=source) for c in chunks]
     embeddings = embed_fn(texts)
+
+    # Drop any chunk whose embedding came out non-finite. A near-empty chunk can
+    # normalize to a zero vector -> NaN, and a single bad vector makes Chroma
+    # reject the whole file's upsert ("Embeddings must not contain NaN or
+    # Infinity") -- losing an otherwise-good document. Keep the finite chunks.
+    finite = [i for i, emb in enumerate(embeddings) if all(map(math.isfinite, emb))]
+    if len(finite) != len(embeddings):
+        logger.warning(
+            "%s: dropped %d/%d chunk(s) with non-finite embeddings",
+            source, len(embeddings) - len(finite), len(embeddings),
+        )
+        ids = [ids[i] for i in finite]
+        texts = [texts[i] for i in finite]
+        metadatas = [metadatas[i] for i in finite]
+        embeddings = [embeddings[i] for i in finite]
+
+    if not ids:
+        logger.warning("no finite-embedding chunks for %s -- skipped", source)
+        return
 
     # delete-then-upsert keeps a changed file from leaving stale chunks behind
     _delete_source(collection, source)

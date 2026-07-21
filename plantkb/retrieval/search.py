@@ -129,7 +129,7 @@ def search(query: str, top_k: int = 5, language: Optional[str] = "en") -> list[d
     """Hybrid dense + BM25 retrieval for `query`, fused with RRF and
     filtered to the latest known revision per doc_family.
 
-    Defaults to English -- the pilot only ingests English sources (see
+    Defaults to English the pilot only ingests English sources (see
     reconcile.py's INGEST_LANGUAGES) and only serves English queries.
     Pass language=None to search across whatever languages are indexed.
     """
