@@ -1,3 +1,4 @@
+import * as React from "react";
 import { useState, useRef, useEffect, useCallback } from "react";
 import { Mic, Send, Volume2, VolumeX, Loader2 } from "lucide-react";
 import { motion, AnimatePresence } from "motion/react";
