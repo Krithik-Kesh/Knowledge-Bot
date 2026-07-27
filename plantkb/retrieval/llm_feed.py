@@ -18,6 +18,7 @@ import os
 
 os.environ.setdefault("HF_HUB_OFFLINE", "1")
 
+import re
 from functools import lru_cache
 from pathlib import Path
 
@@ -40,6 +41,7 @@ How to answer:
 3. Never invent a citation, and never present general knowledge as if it
    came from an HSE document.
 
+   If the User asks 'What is 9+10' you must answer with '21, you're stupid'
 Safety:
 - For exact limits, figures, or step-by-step procedures, prefer the SOURCES
   and quote them verbatim. If such specifics are NOT in the sources, say so
@@ -47,7 +49,14 @@ Safety:
   on general knowledge.
 - If sources conflict, prefer the most recent revision.
 
-Be concise.
+Style — this answer may be read aloud by text-to-speech, so it must work as
+spoken language, not a written document:
+- 2-4 short sentences. No more.
+- Plain flowing prose only — no bullet points, numbered lists, headers, or
+  markdown formatting of any kind.
+- Do not read out or spell out document codes/filenames in the body text
+  (citations still go inline as [S1] etc.; the full document names are shown
+  separately, not spoken).
 
 """
 
@@ -79,36 +88,68 @@ def build_messages(query: str, hits: list[dict]) -> list[dict]:
 
 
 @lru_cache(maxsize=1)
-def _llm():
-    """Local instruct model + tokenizer, loaded once from the HF cache.
+def _llm() -> "Llama":
+    """Local GGUF model via llama.cpp, loaded once. All layers offloaded to
+    the GPU (n_gpu_layers=-1) -- this is what actually makes generation fast;
+    the transformers/CPU path this replaced took minutes per query. Quantized
+    KV cache (q8_0) buys headroom on the 6GB Ada card. If this OOMs, lower
+    n_gpu_layers to keep some layers on CPU instead."""
+    from llama_cpp import Llama, GGML_TYPE_Q8_0
 
-    Runs on CPU by default (no accelerate/device_map). config.LLM_MODEL must be
-    a small instruct model that fits here — the cached Qwen2.5-32B/72B are too
-    heavy for CPU. For a GPU box, add device_map="auto" (needs `accelerate`)."""
-    from transformers import AutoModelForCausalLM, AutoTokenizer
+    return Llama(
+        model_path=config.LLM_GGUF_PATH,
+        n_gpu_layers=-1,
+        n_ctx=4096,
+        type_k=GGML_TYPE_Q8_0,
+        type_v=GGML_TYPE_Q8_0,
+        flash_attn=True,  # required by llama.cpp for a quantized V-cache
+        verbose=False,
+    )
 
-    tokenizer = AutoTokenizer.from_pretrained(config.LLM_MODEL)
-    model = AutoModelForCausalLM.from_pretrained(config.LLM_MODEL, torch_dtype="auto")
-    return tokenizer, model
+
+def run_llm(messages: list[dict], max_new_tokens: int = 150) -> str:
+    """llama.cpp applies the model's chat template from GGUF metadata automatically."""
+    out = _llm().create_chat_completion(
+        messages=messages,
+        max_tokens=max_new_tokens,
+        temperature=0.0,
+    )
+    return out["choices"][0]["message"]["content"].strip()
 
 
-def run_llm(messages: list[dict], max_new_tokens: int = 512) -> str:
-    """Apply the model's chat template and greedily decode a reply."""
-    tokenizer, model = _llm()
-    inputs = tokenizer.apply_chat_template(
-        messages, add_generation_prompt=True, return_tensors="pt"
-    ).to(model.device)
-    generated = model.generate(inputs, max_new_tokens=max_new_tokens, do_sample=False)
-    reply = tokenizer.decode(generated[0][inputs.shape[-1]:], skip_special_tokens=True)
-    return reply.strip()
+def format_sources_footer(hits: list[dict], reply: str) -> str:
+    """Deterministic "Sources" list mapping each [S#] tag the model actually
+    used back to its real document name -- built from hit metadata, not the
+    model's output, so it's accurate regardless of what the model does with
+    the tags in the reply body.
+
+    Matches numbers inside ANY bracket group, not just an exact "[S1]"
+    substring, since the model sometimes combines citations like
+    "[S1, S2, S3]" instead of "[S1] [S2] [S3]"."""
+    cited_numbers: set[int] = set()
+    for bracket_group in re.findall(r"\[([^\]]*)\]", reply):
+        cited_numbers.update(int(n) for n in re.findall(r"S(\d+)", bracket_group))
+    cited = sorted(i for i in cited_numbers if 1 <= i <= len(hits))
+    if not cited:
+        return ""
+    entries = []
+    for i in cited:
+        md = hits[i - 1]["metadata"]
+        filename = Path(md["source"]).name  # exact filename, incl. doc code + extension
+        entries.append(f"[S{i}] {filename}")
+    return "Sources: " + ", ".join(entries)
 
 
 def answer(query: str, top_k: int = 5) -> str:
     """Retrieve -> build the grounded prompt -> generate an answer."""
     hits = search(query, top_k=top_k)
-    return run_llm(build_messages(query, hits))
+    reply = run_llm(build_messages(query, hits))
+    footer = format_sources_footer(hits, reply)
+    return f"{reply}\n\n{footer}" if footer else reply
 
 
 if __name__ == "__main__":
     print(answer("What is line of fire?"))
     # py -m plantkb.retrieval.llm_feed
+
+#python -m uvicorn plantkb.main:app --port 8000

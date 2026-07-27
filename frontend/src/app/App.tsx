@@ -2,16 +2,32 @@ import * as React from "react";
 import { useState, useRef, useEffect, useCallback } from "react";
 import { Mic, Send, Volume2, VolumeX, Loader2 } from "lucide-react";
 import { motion, AnimatePresence } from "motion/react";
+import axios from "axios";
+import ReactMarkdown from "react-markdown";
+import logo from "../assets/MCA_LOGO_2024_ Red and White 1.png";
 
-function StatusBadge() {
+type BackendStatus = "online" | "offline" | "checking";
+
+function StatusBadge({ status }: { status: BackendStatus }) {
+  const dotClass = {
+    online: "bg-emerald-400",
+    offline: "bg-red-500",
+    checking: "bg-muted-foreground",
+  }[status];
+  const textClass = {
+    online: "text-emerald-400",
+    offline: "text-red-500",
+    checking: "text-muted-foreground",
+  }[status];
+  const label = { online: "Online", offline: "Offline", checking: "Checking…" }[status];
   return (
     <div className="flex items-center gap-1.5 px-2.5 py-1 rounded-full border border-border bg-secondary/40">
-      <span className="w-2 h-2 rounded-full flex-shrink-0 bg-emerald-400" />
+      <span className={`w-2 h-2 rounded-full flex-shrink-0 ${dotClass}`} />
       <span
-        className="text-[10px] font-semibold tracking-wide text-emerald-400"
+        className={`text-[10px] font-semibold tracking-wide ${textClass}`}
         style={{ fontFamily: "JetBrains Mono, monospace" }}
       >
-        Online
+        {label}
       </span>
     </div>
   );
@@ -28,19 +44,6 @@ interface Message {
   audioTranscript?: string;
   timestamp: Date;
   isStreaming?: boolean;
-}
-
-function getAIResponse(message: string): string {
-  const lower = message.toLowerCase();
-  if (lower.includes("safe") || lower.includes("ppe") || lower.includes("hazard"))
-    return "Safety is our top priority at McAsphalt. Always wear full PPE near the drum — heat-resistant gloves, safety boots, hard hat, and hi-vis vest. Maintain safe distances from hot mix areas, ensure proper ventilation when working near fumes, and follow lockout/tagout procedures before any equipment maintenance.";
-  if (lower.includes("temp") || lower.includes("heat") || lower.includes("celsius") || lower.includes("hot") || lower.includes("mix"))
-    return "Asphalt mix temperatures are critical. Dense-graded mixes should be produced at 140–165°C (285–330°F). Polymer-modified mixes may require slightly higher temps. Monitor aggregate dryer outlet temp and mix discharge temp continuously. A temperature drop exceeding 15°C during transport can indicate compaction issues.";
-  if (lower.includes("equipment") || lower.includes("machine") || lower.includes("drum") || lower.includes("fault") || lower.includes("conveyor"))
-    return "For equipment issues: check power supply and hydraulic fluid levels first, then inspect wear components like paddles, flights, and burner nozzles. Log any fault codes displayed. Always follow lockout/tagout before physical inspection. Report persistent issues to maintenance immediately.";
-  if (lower.includes("burner") || lower.includes("ignit"))
-    return "If the burner won't ignite: verify fuel supply valves are open, check the UV flame scanner for contamination, inspect the ignition electrode gap (should be 3–4 mm), and confirm combustion air fan is running. If the issue persists after 3 attempts, shut down and call the maintenance team.";
-  return "I'm your McAsphalt plant knowledge assistant. I can help with plant operations, safety protocols, equipment troubleshooting, mix design, and quality control. Ask me anything related to your work on site.";
 }
 
 function WaveformBars({ active }: { active: boolean }) {
@@ -162,8 +165,21 @@ function MessageBubble({ msg }: { msg: Message }) {
               <Loader2 className="w-3.5 h-3.5 animate-spin text-accent" />
               <span className="text-muted-foreground text-xs">Thinking…</span>
             </span>
-          ) : (
+          ) : isUser ? (
             msg.content
+          ) : (
+            <ReactMarkdown
+              components={{
+                p: ({ ...props }) => <p className="mb-2 last:mb-0" {...props} />,
+                ul: ({ ...props }) => <ul className="list-disc pl-4 mb-2 last:mb-0" {...props} />,
+                ol: ({ ...props }) => <ol className="list-decimal pl-4 mb-2 last:mb-0" {...props} />,
+                li: ({ ...props }) => <li className="mb-0.5" {...props} />,
+                strong: ({ ...props }) => <strong className="font-semibold" {...props} />,
+                a: ({ ...props }) => <a className="underline text-accent" target="_blank" rel="noreferrer" {...props} />,
+              }}
+            >
+              {msg.content}
+            </ReactMarkdown>
           )}
         </div>
         <span
@@ -186,6 +202,7 @@ export default function App() {
   const [micError, setMicError] = useState<string | null>(null);
   const [transcript, setTranscript] = useState("");
   const [isLoading, setIsLoading] = useState(false);
+  const [backendStatus, setBackendStatus] = useState<BackendStatus>("checking");
 
   const messagesEndRef = useRef<HTMLDivElement>(null);
   const recognitionRef = useRef<SpeechRecognition | null>(null);
@@ -201,6 +218,24 @@ export default function App() {
   useEffect(() => {
     messagesEndRef.current?.scrollIntoView({ behavior: "smooth" });
   }, [messages]);
+
+  useEffect(() => {
+    let cancelled = false;
+    const checkHealth = async () => {
+      try {
+        await axios.get("http://localhost:8000/api/health", { timeout: 4000 });
+        if (!cancelled) setBackendStatus("online");
+      } catch {
+        if (!cancelled) setBackendStatus("offline");
+      }
+    };
+    checkHealth();
+    const interval = setInterval(checkHealth, 10000);
+    return () => {
+      cancelled = true;
+      clearInterval(interval);
+    };
+  }, []);
 
   const speak = useCallback(
     (text: string) => {
@@ -240,16 +275,30 @@ export default function App() {
       setTranscript("");
       setIsLoading(true);
 
-      await new Promise(r => setTimeout(r, 900 + Math.random() * 700));
+      let response: string;
+      try {
+        const { data } = await axios.post<{ response: string }>(
+          "http://localhost:8000/api/ask",
+          { question: content }
+        );
+        response = data.response;
+      } catch {
+        response = "Hi, Krithik!";
+      }
 
-      const response = getAIResponse(content);
       setMessages(prev =>
         prev.map(m =>
           m.id === loadingMsg.id ? { ...m, content: response, isStreaming: false } : m
         )
       );
       setIsLoading(false);
-      speak(response);
+      // Strip the "Sources:" footer and inline [S#] tags before speaking --
+      // document codes read aloud by TTS are noise, not useful spoken content.
+      const spokenText = response
+        .replace(/\n\nSources:\n[\s\S]*$/, "")
+        .replace(/\[S\d+(?:\s*,\s*S?\d+)*\]/g, "")
+        .trim();
+      speak(spokenText);
     },
     [speak]
   );
@@ -339,14 +388,11 @@ export default function App() {
       {/* ── Header ── */}
       <header className="flex items-center justify-between px-5 py-4 border-b border-border flex-shrink-0">
         <div className="flex items-center gap-3">
-          <div className="w-8 h-8 rounded bg-primary flex items-center justify-center flex-shrink-0">
-            <span
-              className="text-white font-bold text-xs"
-              style={{ fontFamily: "Barlow Condensed, sans-serif" }}
-            >
-              MC
-            </span>
-          </div>
+          <img
+            src={logo}
+            alt="MCA logo"
+            className="h-8 w-auto object-contain flex-shrink-0"
+          />
           <div>
             <p
               className="text-foreground font-bold text-sm leading-tight tracking-wide"
@@ -364,7 +410,7 @@ export default function App() {
         </div>
 
         <div className="flex items-center gap-2">
-          <StatusBadge />
+          <StatusBadge status={backendStatus} />
           {isSpeaking && (
             <motion.div initial={{ opacity: 0 }} animate={{ opacity: 1 }} className="flex items-center">
               <WaveformBars active />
@@ -415,11 +461,11 @@ export default function App() {
                   className="text-4xl font-extrabold text-foreground tracking-tight leading-none mb-3"
                   style={{ fontFamily: "Barlow Condensed, sans-serif" }}
                 >
-                  WHAT DO YOU <br />
-                  <span style={{ color: "#CE0404" }}>NEED TO KNOW?</span>
+                  HOW MAY I <br />
+                  <span style={{ color: "#CE0404" }}>ASSIST YOU?</span>
                 </h2>
                 <p className="text-muted-foreground text-sm max-w-xs mx-auto leading-relaxed">
-                  Ask about safety, mix temps, equipment, or anything on site — by voice or text.
+                  Ask about safety, mix temps, equipment, or anything on site by voice or text.
                 </p>
               </motion.div>
 

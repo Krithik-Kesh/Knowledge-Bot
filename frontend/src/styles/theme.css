@@ -135,6 +135,11 @@
 
   html {
     font-size: var(--font-size);
+    height: 100%;
+  }
+
+  body {
+    height: 100%;
   }
 
   h1 {

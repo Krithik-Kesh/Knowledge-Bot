@@ -151,3 +151,5 @@ def reconcile(embed_fn) -> m.Diff:
     )
     return diff
 
+#python -m plantkb.ingest.reconcile
+
