@@ -38,15 +38,17 @@ def _get_collection():
     client = chromadb.PersistentClient(path=str(config.CHROMA_DIR))
     return client.get_collection(name=config.COLLECTION)
 
+#runs once ever in the lifetime
+
 
 @lru_cache(maxsize=1)
 def _corpus():
-    """Every chunk's id/text/metadata, cached for the life of the process.
+    """Every chunk's id/text/metadata, cached..
 
     Backs both the BM25 index and the latest-revision lookup. Rebuilding
     per query would be wasteful once this runs inside a long-lived web app;
     the tradeoff is that this cache goes stale if reconcile.py writes new
-    chunks while the process is alive -- acceptable for now since ingest
+    chunks while the process is alive acceptable for now since ingest
     and serving run as separate processes.
     """
     got = _get_collection().get(include=["documents", "metadatas"])
@@ -127,7 +129,7 @@ def search(query: str, top_k: int = 5, language: Optional[str] = "en") -> list[d
     """Hybrid dense + BM25 retrieval for `query`, fused with RRF and
     filtered to the latest known revision per doc_family.
 
-    Defaults to English -- the pilot only ingests English sources (see
+    Defaults to English the pilot only ingests English sources (see
     reconcile.py's INGEST_LANGUAGES) and only serves English queries.
     Pass language=None to search across whatever languages are indexed.
     """
