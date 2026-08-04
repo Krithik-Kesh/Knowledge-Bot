@@ -1,27 +1,21 @@
 """
 
 llm_feed.py
-
 LLM feeds the results from search.py into a prompt template for the LLM to answer a user query.
-
 Grounding policy (hybrid): prefer the retrieved HSE sources and cite them
 [S1], [S2]; if they don't cover the question, the model may fall back to its
 own general knowledge but must label it and cite no documents (see
 SYSTEM_PROMPT).
-
 Like embed.py, the model loads offline from the local HF cache
 (HF_HUB_OFFLINE=1). config.LLM_MODEL is a Hugging Face repo id resolved from
 ~/.cache/huggingface/hub, exactly like EMBED_MODEL.
 """
 
 import os
-
 os.environ.setdefault("HF_HUB_OFFLINE", "1")
-
 import re
 from functools import lru_cache
 from pathlib import Path
-
 from plantkb import config
 from plantkb.retrieval.search import search, _latest_revision_by_family, _is_superseded
 
@@ -60,7 +54,6 @@ spoken language, not a written document:
 
 """
 
-
 def format_context(hits: list[dict]) -> str:
     """Render search() hits as tagged, citable source blocks ([S1], [S2], ...)."""
     blocks = []
@@ -75,10 +68,9 @@ def format_context(hits: list[dict]) -> str:
         )
     return "\n\n".join(blocks)
 
-
 def build_messages(query: str, hits: list[dict]) -> list[dict]:
     """Chat messages: system rules + tagged sources + the question. Zero hits
-    still go through (with a notice) so the LLM can fall back to general
+    stilll go through (with a notice) so the LLM can fall back to general
     knowledge per the grounding policy rather than dead-ending."""
     context = format_context(hits) if hits else "(no matching HSE documents found)"
     return [
@@ -89,11 +81,8 @@ def build_messages(query: str, hits: list[dict]) -> list[dict]:
 
 @lru_cache(maxsize=1)
 def _llm() -> "Llama":
-    """Local GGUF model via llama.cpp, loaded once. All layers offloaded to
-    the GPU (n_gpu_layers=-1) -- this is what actually makes generation fast;
-    the transformers/CPU path this replaced took minutes per query. Quantized
-    KV cache (q8_0) buys headroom on the 6GB Ada card. If this OOMs, lower
-    n_gpu_layers to keep some layers on CPU instead."""
+    """Offloading GPU capacity to the LLM is expensive, so cache the model instance for reuse across multiple
+    requests. The LLM is thread-safe, so this is safe for FastAPI's default multi-threaded server."""
     from llama_cpp import Llama, GGML_TYPE_Q8_0
 
     return Llama(
@@ -119,13 +108,9 @@ def run_llm(messages: list[dict], max_new_tokens: int = 150) -> str:
 
 def format_sources_footer(hits: list[dict], reply: str) -> str:
     """Deterministic "Sources" list mapping each [S#] tag the model actually
-    used back to its real document name -- built from hit metadata, not the
+    used back to its real document name built from hit metadata, not the
     model's output, so it's accurate regardless of what the model does with
-    the tags in the reply body.
-
-    Matches numbers inside ANY bracket group, not just an exact "[S1]"
-    substring, since the model sometimes combines citations like
-    "[S1, S2, S3]" instead of "[S1] [S2] [S3]"."""
+    the tags in the reply body."""
     cited_numbers: set[int] = set()
     for bracket_group in re.findall(r"\[([^\]]*)\]", reply):
         cited_numbers.update(int(n) for n in re.findall(r"S(\d+)", bracket_group))
