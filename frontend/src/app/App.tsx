@@ -203,6 +203,8 @@ export default function App() {
   const [transcript, setTranscript] = useState("");
   const [isLoading, setIsLoading] = useState(false);
   const [backendStatus, setBackendStatus] = useState<BackendStatus>("checking");
+  const [promptStyle, setPromptStyle] = useState<"concise" | "detailed">("concise");
+  const [selectedPlant, setSelectedPlant] = useState<string>("ASH");
 
   const messagesEndRef = useRef<HTMLDivElement>(null);
   const recognitionRef = useRef<SpeechRecognition | null>(null);
@@ -279,11 +281,11 @@ export default function App() {
       try {
         const { data } = await axios.post<{ response: string }>(
           "http://localhost:8000/api/ask",
-          { question: content }
+          { question: content, promptStyle, plantCode: selectedPlant }
         );
         response = data.response;
       } catch {
-        response = "Hi, Krithik!";
+        response = "Backend error: Unable to get a response. Please try again later.";
       }
 
       setMessages(prev =>
@@ -300,7 +302,7 @@ export default function App() {
         .trim();
       speak(spokenText);
     },
-    [speak]
+    [speak, promptStyle, selectedPlant]
   );
 
   const toggleRecording = useCallback(() => {
@@ -400,31 +402,48 @@ export default function App() {
             >
               MCASPHALT KNOWLEDGEBOT
             </p>
-            <p
-              className="text-muted-foreground text-[10px] tracking-widest uppercase"
-              style={{ fontFamily: "JetBrains Mono, monospace" }}
-            >
-              Plant Operations AI
-            </p>
           </div>
         </div>
 
-        <div className="flex items-center gap-2">
-          <StatusBadge status={backendStatus} />
-          {isSpeaking && (
-            <motion.div initial={{ opacity: 0 }} animate={{ opacity: 1 }} className="flex items-center">
-              <WaveformBars active />
-            </motion.div>
-          )}
-          <button
-            onClick={() => {
-              setTtsEnabled(p => !p);
-              if (isSpeaking) { synthRef.current?.cancel(); setIsSpeaking(false); }
-            }}
-            className="w-8 h-8 flex items-center justify-center text-muted-foreground hover:text-foreground transition-colors"
-          >
-            {ttsEnabled ? <Volume2 className="w-4 h-4" /> : <VolumeX className="w-4 h-4" />}
-          </button>
+        <div className="flex flex-col items-end gap-2">
+          <div className="flex flex-col items-end gap-1.5">
+            <div className="flex items-center gap-3">
+              <StatusBadge status={backendStatus} />
+              {isSpeaking && (
+                <motion.div initial={{ opacity: 0 }} animate={{ opacity: 1 }} className="flex items-center">
+                  <WaveformBars active />
+                </motion.div>
+              )}
+              <button
+                onClick={() => {
+                  setTtsEnabled(p => !p);
+                  if (isSpeaking) { synthRef.current?.cancel(); setIsSpeaking(false); }
+                }}
+                className="w-8 h-8 flex items-center justify-center text-muted-foreground hover:text-foreground transition-colors"
+              >
+                {ttsEnabled ? <Volume2 className="w-4 h-4" /> : <VolumeX className="w-4 h-4" />}
+              </button>
+            </div>
+            <div className="flex flex-col items-end gap-1">
+              <div className="flex items-center gap-1.5 px-2.5 py-1 rounded-full border border-accent/40 bg-accent/5">
+                <span
+                  className="text-[9px] font-semibold tracking-widest text-accent uppercase"
+                  style={{ fontFamily: "JetBrains Mono, monospace" }}
+                >
+                  Mode: {promptStyle === "concise" ? "Concise" : "Detailed"}
+                </span>
+              </div>
+              <div className="flex items-center gap-1.5 px-2.5 py-1 rounded-full border border-accent/40 bg-accent/5">
+                <span
+                  className="text-[9px] font-semibold tracking-widest text-accent uppercase"
+                  style={{ fontFamily: "JetBrains Mono, monospace" }}
+                >
+                  Location: {selectedPlant}
+                </span>
+              </div>
+            </div>
+          </div>
+
           {hasMessages && (
             <button
               onClick={() => { setMessages([]); setTranscript(""); synthRef.current?.cancel(); }}
@@ -464,9 +483,71 @@ export default function App() {
                   HOW MAY I <br />
                   <span style={{ color: "#CE0404" }}>ASSIST YOU?</span>
                 </h2>
-                <p className="text-muted-foreground text-sm max-w-xs mx-auto leading-relaxed">
+                <p className="text-muted-foreground text-xs max-w-xs mx-auto leading-relaxed mb-6 font-mono uppercase tracking-widest">
                   Ask about safety, mix temps, equipment, or anything on site by voice or text.
                 </p>
+
+                <div className="flex flex-col gap-4 items-center mb-6">
+                  <div className="flex gap-3 justify-center items-center">
+                    <label className="text-xs font-mono text-muted-foreground uppercase tracking-widest">
+                      Location:
+                    </label>
+                    <select
+                      value={selectedPlant}
+                      onChange={(e) => setSelectedPlant(e.target.value)}
+                      className="bg-card border border-accent/40 rounded-lg px-3 py-1.5 text-xs text-foreground font-mono cursor-pointer hover:border-accent hover:bg-card/80 transition-all focus:outline-none focus:border-accent focus:ring-1 focus:ring-accent/20"
+                    >
+                      <option value="THB">113 - Thunder Bay (THB)</option>
+                      <option value="NOB">114 - North Bay (NOB)</option>
+                      <option value="PST">115 - Port Stanley (PST)</option>
+                      <option value="OTT">116 - Ottawa (OTT)</option>
+                      <option value="OSH">118 - Oshawa (OSH)</option>
+                      <option value="HAM">120 - Hamilton (HAM)</option>
+                      <option value="BRA">121 - Brampton (BRA)</option>
+                      <option value="MON">222 - Montreal (MON)</option>
+                      <option value="VLF">224 - Valleyfield (VLF)</option>
+                      <option value="BEC">250 - Bécancour (BEC)</option>
+                      <option value="STH">251 - St Hyacinthe (STH)</option>
+                      <option value="PAN">325 - Perth Andover (PAN)</option>
+                      <option value="DPP">326 - Dieppe (DPP)</option>
+                      <option value="DAR">339 - Dartmouth (DAR)</option>
+                      <option value="EPA">340 - Eastern Passage (EPA)</option>
+                      <option value="WPG">433 - Winnipeg (WPG)</option>
+                      <option value="REG">434 - Regina (REG)</option>
+                      <option value="CAL">435 - Calgary (CAL)</option>
+                      <option value="LAN">436 - Langley (LAN)</option>
+                      <option value="MAC">438 - Macklin (MAC)</option>
+                      <option value="EDM">439 - Edmonton (EDM)</option>
+                      <option value="CLA">450 - Clairmont (CLA)</option>
+                      <option value="ACH">451 - Acheson (ACH)</option>
+                      <option value="SHP">452 - Sheppard (SHP)</option>
+                      <option value="ASH">453 - Ashcroft (ASH)</option>
+                    </select>
+                  </div>
+
+                  <div className="flex gap-3 justify-center">
+                    <button
+                      onClick={() => setPromptStyle("concise")}
+                      className={`px-4 py-2 rounded-lg font-mono text-xs uppercase tracking-widest transition-all ${
+                        promptStyle === "concise"
+                          ? "bg-primary text-white border border-primary"
+                          : "border border-border bg-card hover:border-accent"
+                      }`}
+                    >
+                      Concise
+                    </button>
+                    <button
+                      onClick={() => setPromptStyle("detailed")}
+                      className={`px-4 py-2 rounded-lg font-mono text-xs uppercase tracking-widest transition-all ${
+                        promptStyle === "detailed"
+                          ? "bg-primary text-white border border-primary"
+                          : "border border-border bg-card hover:border-accent"
+                      }`}
+                    >
+                      Detailed
+                    </button>
+                  </div>
+                </div>
               </motion.div>
 
               {/* Big mic */}
@@ -562,6 +643,17 @@ export default function App() {
                 className="flex-1 overflow-y-auto py-4"
                 style={{ scrollbarWidth: "none" }}
               >
+                {isLoading && promptStyle === "detailed" && (
+                  <motion.div
+                    initial={{ opacity: 0, y: -8 }}
+                    animate={{ opacity: 1, y: 0 }}
+                    className="mx-4 mb-3 px-3 py-2 bg-accent/10 border border-accent/30 rounded-lg text-center"
+                  >
+                    <span className="text-accent text-xs italic">
+                      Detailed responses will take longer to generate
+                    </span>
+                  </motion.div>
+                )}
                 {messages.map(msg => (
                   <MessageBubble key={msg.id} msg={msg} />
                 ))}
@@ -630,12 +722,6 @@ export default function App() {
                 </div>
 
                 <div className="flex items-center justify-between mt-2.5 px-1">
-                  <span
-                    className="text-muted-foreground text-[10px] tracking-widest uppercase"
-                    style={{ fontFamily: "JetBrains Mono, monospace" }}
-                  >
-                    McAsphalt · Plant AI
-                  </span>
                   <button
                     onClick={() => {
                       setTtsEnabled(p => !p);

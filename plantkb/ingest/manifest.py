@@ -49,6 +49,12 @@ def load_manifest(manifest_path: Path) -> dict[str, str]:
         return {}
     return json.loads(manifest_path.read_text(encoding="utf-8"))
 
+def load_manifest(manifest_path: Path) -> dict[str, str]:
+    """Last-run snapshot. Empty dict on first run (file absent)."""
+    if not manifest_path.exists():
+        return {}
+    return json.loads(manifest_path.read_text(encoding="utf-8"))
+
 
 def save_manifest(manifest_path: Path, state: dict[str, str]) -> None:
     """Overwrite the manifest with the current snapshot (written last, after

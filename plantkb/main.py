@@ -39,12 +39,13 @@ async def health_check():
 
 class AskRequest(BaseModel):
     question: str
+    promptStyle: str = "concise"
+    plantCode: str = "ASH"
 
 
 @app.post("/api/ask")
 def ask_question(request: Request, data: AskRequest):
-    verify_shared_secret(request)
-    return {"response": answer(data.question)}
+    return {"response": answer(data.question, promptStyle=data.promptStyle, plantCode=data.plantCode)}
 
 if __name__ == "__main__":
     uvicorn.run(app, host="0.0.0.0", port=8000)
