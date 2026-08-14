@@ -22,42 +22,77 @@ from plantkb.retrieval.search import search, _latest_revision_by_family, _is_sup
 
 CONCISE_PROMPT = """
 
-Answer in ONE PARAGRAPH ONLY (2-3 sentences max).
+Answer concisely. Be SPECIFIC and ACTIONABLE.
+You are answering a plant worker who needs quick, useful information to do their job safely.
 CITE EVERY CLAIM: Use [S1], [S2], [S3] for each fact from sources.
-- No numbering, no lists, no steps
-- Plain text only
-- Keep it brief
 
-Answer briefly with citations:
+For SAFETY/HAZARD QUESTIONS: Lead with the KEY RISK or ACTION in the first sentence.
+
+For PROCEDURE, STEPS, HOW-TO, SOP, or METHODS QUESTIONS: Use numbered list format:
+1. Step one - explain with citation [S#]
+2. Step two - explain with citation [S#]
+3. Step three - explain with citation [S#]
+
+For REQUIREMENTS, CHECKLIST, PPE, or "WHAT DO I NEED" QUESTIONS: Use numbered list format:
+1. Requirement one [S#]
+2. Requirement two [S#]
+3. Requirement three [S#]
+
+For OTHER QUESTIONS: One or two clear sentences with citations.
+
+Guidelines:
+- Keep responses brief and scannable
+- Use numbers for lists/checklists/steps
+- Cite every fact [S1], [S2], [S3]
+- Be specific—avoid "it depends" or "consult supervisor" unless essential
+
+Answer with citations:
 """
 
 DETAILED_PROMPT = """
+You are PlantKB an AI assistant for McAshpalt Industries. 
+You answer questions about plant operations, safety, and procedures using the provided sources. 
+If the sources do not cover the question, you may fall back to your own general knowledge but must label it as such and cite no documents.
+Every response must be in the context of a plant worker who asking you a question. So answer in specifics that they would know.
+DOnt be vague or general. Use the sources to provide specific, actionable information.
+Moreover, you must always answer in a way that is safe and does not put the worker at risk. 
+If the question is safety-critical, you must prioritize hazard warnings and safe conditions before providing any procedures.
 
 Write a COMPREHENSIVE ANSWER with 5+ sentences.
 CITE EVERY CLAIM: Use [S1], [S2], [S3] for each fact from sources.
 Include: background, context, safety, examples, all relevant details.
 
+FOR JHA (JOB HAZARD ANALYSIS) AND PROCEDURE DOCUMENTS:
+- Use the EXACT steps as written in the source document
+- Do NOT paraphrase, simplify, or omit details
+- If the document says "isolate strainer box, crack one ear," use those exact words with [S#] citation
+- Include ALL prerequisite steps and technical details, even if they seem minor
+- If the document has numbered/lettered steps, preserve that numbering exactly
+- Example: "Per [S1], Step 1 is: 'Isolate the strainer box from the system.' Step 2: 'Open lid by cracking one ear on the opposite side to introduce air and relieve suction.'"
+
 FOR SAFETY-CRITICAL OR HAZARD QUESTIONS (tanker loading, chemical handling, confined spaces, etc.):
 Start with: ⚠️ **HAZARD:** [Primary risk - e.g., boil-overs, explosions, toxic exposure]
 Then: **Safe Conditions Required:** [Prerequisites that MUST be met]
 Then: **Procedure (Only if all conditions above are met):**
-1. Step one - explain with citation [S#]
-2. Step two - explain with citation [S#]
+1. Explain with citation [S#]
+2. Explain with citation [S#]
 Finally: **STOP if any of these apply:** [Red flags, incompatibilities, forbidden conditions]
 
 FOR OTHER "HOW TO", "STEPS", "STEP BY STEP", "PROCEDURE" and "METHODS" QUESTIONS:
-1. Step one - explain with citation [S#]
-2. Step two - explain with citation [S#]
-3. Step three - explain with citation [S#]
+1. Explain with citation [S#]
+2. Explain with citation [S#]
+3. Explain with citation [S#]
 (list all steps with citations)
 
-The 'Step One, Step Two' should be bolded
+Only the numbers '1., 2.,...' should be bolded.
+Each line listed in order, with each step on a new line.
+
 
 Answer with comprehensive detail and citations. PRIORITIZE HAZARDS OVER PERMISSION:
 """
 
-def format_context(hits: list[dict]) -> str:
-    """Render search() hits as tagged, citable source blocks ([S1], [S2], ...)."""
+def context(hits: list[dict]) -> str:
+    """Comment formatting stuffs"""
     blocks = []
     for i, hit in enumerate(hits, 1):
         md = hit["metadata"]
@@ -74,16 +109,19 @@ def build_messages(query: str, hits: list[dict], promptStyle: str = "concise", s
     """Chat messages: system rules + tagged sources + the question. Zero hits
     still go through (with a notice) so the LLM can fall back to general
     knowledge per the grounding policy rather than dead-ending."""
-    context = format_context(hits) if hits else "(no matching HSE documents found)"
+    cont = context(hits) if hits else "(no matching HSE documents found)"
     system_prompt = DETAILED_PROMPT if promptStyle == "detailed" else CONCISE_PROMPT
 
     # For safety-critical questions, add explicit hazard-first instruction
-    if safety_critical and promptStyle == "detailed":
-        system_prompt += "\n\n⚠️ IMPORTANT: This is a SAFETY question. ALWAYS start your response with the PRIMARY HAZARD and required safe conditions BEFORE providing procedures. Structure: [HAZARD] → [SAFE CONDITIONS REQUIRED] → [PROCEDURE] → [CRITICAL WARNINGS]"
+    if safety_critical:
+        if promptStyle == "detailed":
+            system_prompt += "\n\n⚠️ IMPORTANT: This is a SAFETY question. ALWAYS start your response with the PRIMARY HAZARD and required safe conditions BEFORE providing procedures. Structure: [HAZARD] → [SAFE CONDITIONS REQUIRED] → [PROCEDURE] → [CRITICAL WARNINGS]"
+        else:  # concise prompts
+            system_prompt += "\n\n⚠️ IMPORTANT: This is a SAFETY question. Lead with the PRIMARY RISK or KEY ACTION in the first sentence. Be direct: what's the danger, and what do they need to do?"
 
     return [
         {"role": "system", "content": system_prompt},
-        {"role": "user", "content": f"SOURCES:\n{context}\n\nQUESTION: {query}"},
+        {"role": "user", "content": f"SOURCES:\n{cont}\n\nQUESTION: {query}"},
     ]
 
 
@@ -104,6 +142,8 @@ def _llm() -> "Llama":
     )
 
 
+#TODO: Add a timeout or max tokens limit to prevent runaway generation
+
 def run_llm(messages: list[dict], max_new_tokens: int = 150) -> str:
     """llama.cpp applies the model's chat template from GGUF metadata automatically."""
     out = _llm().create_chat_completion(
@@ -114,8 +154,8 @@ def run_llm(messages: list[dict], max_new_tokens: int = 150) -> str:
     return out["choices"][0]["message"]["content"].strip()
 
 
-def format_procedural_response(reply: str) -> str:
-    """Format numbered steps in responses (e.g., '1. step' becomes '1. step')."""
+def number_response(reply: str) -> str:
+    """Format numbered steps in responses"""
     lines = reply.split('\n')
     formatted_lines = []
     for line in lines:
@@ -126,7 +166,7 @@ def format_procedural_response(reply: str) -> str:
     return '\n'.join(formatted_lines)
 
 
-def format_sources_footer(hits: list[dict], reply: str) -> str:
+def sources(hits: list[dict], reply: str) -> str:
     """Deterministic "Sources" list mapping each [S#] tag the model actually
     used back to its real document name built from hit metadata, not the
     model's output, so it's accurate regardless of what the model does with
@@ -185,6 +225,45 @@ def is_safety_critical_question(query: str) -> bool:
     return any(keyword in query_lower for keyword in safety_keywords)
 
 
+# Mapping of plant names/locations to plant codes
+PLANT_NAME_TO_CODE = {
+    "thunder bay": "THB",
+    "north bay": "NOB",
+    "port stanley": "PST",
+    "ottawa": "OTT",
+    "oshawa": "OSH",
+    "hamilton": "HAM",
+    "brampton": "BRA",
+    "montreal": "MON",
+    "valleyfield": "VLF",
+    "bécancour": "BEC",
+    "st hyacinthe": "STH",
+    "perth andover": "PAN",
+    "dieppe": "DPP",
+    "dartmouth": "DAR",
+    "eastern passage": "EPA",
+    "winnipeg": "WPG",
+    "regina": "REG",
+    "calgary": "CAL",
+    "langley": "LAN",
+    "macklin": "MAC",
+    "edmonton": "EDM",
+    "clairmont": "CLA",
+    "acheson": "ACH",
+    "sheppard": "SHP",
+    "ashcroft": "ASH",
+}
+
+
+def extract_plant_from_query(query: str) -> str | None:
+    """Extract plant code from query if user mentions their location."""
+    query_lower = query.lower().strip()
+    for plant_name, plant_code in PLANT_NAME_TO_CODE.items():
+        if plant_name in query_lower:
+            return plant_code
+    return None
+
+
 def filter_by_plant(hits: list[dict], plant_code: str) -> tuple[list[dict], list[dict]]:
     """Filter hits by plant code. Returns (plant_specific_hits, corporate_hits)."""
     # Codes that are always included
@@ -207,7 +286,7 @@ def filter_by_plant(hits: list[dict], plant_code: str) -> tuple[list[dict], list
     return plant_specific, corporate_hits
 
 
-def answer(query: str, top_k: int = 5, promptStyle: str = "concise", plantCode: str = "ASH") -> str:
+def answer(query: str, top_k: int = 5, promptStyle: str = "concise", plantCode: str = None) -> str:
     """Retrieve -> build the grounded prompt -> generate an answer."""
     # For general greetings, answer without searching the knowledge base
     if is_general_question(query):
@@ -218,22 +297,33 @@ def answer(query: str, top_k: int = 5, promptStyle: str = "concise", plantCode: 
         ], max_new_tokens=max_tokens)
         return reply
 
-    # For knowledge-base queries, search and filter by plant
-    all_hits = search(query, top_k=top_k * 2)  # Get more results to filter
-    plant_specific_hits, corporate_hits = filter_by_plant(all_hits, plantCode)
+    # Extract plant from query if not provided
+    if not plantCode:
+        plantCode = extract_plant_from_query(query)
 
-    # Use plant-specific hits if available, otherwise fall back to corporate
-    if plant_specific_hits:
-        hits = plant_specific_hits[:top_k]
-        use_fallback = False
+    # For MCA queries, search and filter by plant
+    all_hits = search(query, top_k=top_k * 2)  # Get more results to filter
+
+    if plantCode:
+        # Plant-specific filtering
+        plant_specific_hits, corporate_hits = filter_by_plant(all_hits, plantCode)
+
+        # Use plant-specific hits if available otherwise fall back to corporae
+        if plant_specific_hits:
+            hits = plant_specific_hits[:top_k]
+            use_fallback = False
+        else:
+            hits = corporate_hits[:top_k]
+            use_fallback = True
     else:
-        hits = corporate_hits[:top_k]
-        use_fallback = True
+        # No plant mentioned use all hits (corporate +general documents)
+        hits = all_hits[:top_k]
+        use_fallback = False
 
     max_tokens = 600 if promptStyle == "detailed" else 100
     safety_critical = is_safety_critical_question(query)
     reply = run_llm(build_messages(query, hits, promptStyle=promptStyle, safety_critical=safety_critical), max_new_tokens=max_tokens)
-    footer = format_sources_footer(hits, reply)
+    footer = sources(hits, reply)
 
     # DEBUG: Print what we're returning
     print(f"[DEBUG] Footer created: '{footer}'")

@@ -40,7 +40,7 @@ async def health_check():
 class AskRequest(BaseModel):
     question: str
     promptStyle: str = "concise"
-    plantCode: str = "ASH"
+    plantCode: str = None  # Optional: extracted from question if not provided
 
 
 @app.post("/api/ask")

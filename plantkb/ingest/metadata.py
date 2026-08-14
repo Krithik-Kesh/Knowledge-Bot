@@ -11,7 +11,7 @@ e.g. COR.HSE.TRN.001.EN.00.Corporate HSE Orientation.pdf
 
 Parsed fields let retrieval filter/group by type, language, owning
 department, and doc_family (the same document across languages/revisions
-shares one family key -- e.g. EN and FR editions of doc 001). Files that
+shares one family key for ecampl;e, e.g. EN and FR editions of doc 001). Files that
 don't match the convention degrade gracefully to "unknown" fields rather
 than failing ingestion.
 """

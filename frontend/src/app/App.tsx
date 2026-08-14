@@ -204,7 +204,6 @@ export default function App() {
   const [isLoading, setIsLoading] = useState(false);
   const [backendStatus, setBackendStatus] = useState<BackendStatus>("checking");
   const [promptStyle, setPromptStyle] = useState<"concise" | "detailed">("concise");
-  const [selectedPlant, setSelectedPlant] = useState<string>("ASH");
 
   const messagesEndRef = useRef<HTMLDivElement>(null);
   const recognitionRef = useRef<SpeechRecognition | null>(null);
@@ -281,7 +280,7 @@ export default function App() {
       try {
         const { data } = await axios.post<{ response: string }>(
           "http://localhost:8000/api/ask",
-          { question: content, promptStyle, plantCode: selectedPlant }
+          { question: content, promptStyle }
         );
         response = data.response;
       } catch {
@@ -302,7 +301,7 @@ export default function App() {
         .trim();
       speak(spokenText);
     },
-    [speak, promptStyle, selectedPlant]
+    [speak, promptStyle]
   );
 
   const toggleRecording = useCallback(() => {
@@ -433,14 +432,6 @@ export default function App() {
                   Mode: {promptStyle === "concise" ? "Concise" : "Detailed"}
                 </span>
               </div>
-              <div className="flex items-center gap-1.5 px-2.5 py-1 rounded-full border border-accent/40 bg-accent/5">
-                <span
-                  className="text-[9px] font-semibold tracking-widest text-accent uppercase"
-                  style={{ fontFamily: "JetBrains Mono, monospace" }}
-                >
-                  Location: {selectedPlant}
-                </span>
-              </div>
             </div>
           </div>
 
@@ -488,43 +479,6 @@ export default function App() {
                 </p>
 
                 <div className="flex flex-col gap-4 items-center mb-6">
-                  <div className="flex gap-3 justify-center items-center">
-                    <label className="text-xs font-mono text-muted-foreground uppercase tracking-widest">
-                      Location:
-                    </label>
-                    <select
-                      value={selectedPlant}
-                      onChange={(e) => setSelectedPlant(e.target.value)}
-                      className="bg-card border border-accent/40 rounded-lg px-3 py-1.5 text-xs text-foreground font-mono cursor-pointer hover:border-accent hover:bg-card/80 transition-all focus:outline-none focus:border-accent focus:ring-1 focus:ring-accent/20"
-                    >
-                      <option value="THB">113 - Thunder Bay (THB)</option>
-                      <option value="NOB">114 - North Bay (NOB)</option>
-                      <option value="PST">115 - Port Stanley (PST)</option>
-                      <option value="OTT">116 - Ottawa (OTT)</option>
-                      <option value="OSH">118 - Oshawa (OSH)</option>
-                      <option value="HAM">120 - Hamilton (HAM)</option>
-                      <option value="BRA">121 - Brampton (BRA)</option>
-                      <option value="MON">222 - Montreal (MON)</option>
-                      <option value="VLF">224 - Valleyfield (VLF)</option>
-                      <option value="BEC">250 - Bécancour (BEC)</option>
-                      <option value="STH">251 - St Hyacinthe (STH)</option>
-                      <option value="PAN">325 - Perth Andover (PAN)</option>
-                      <option value="DPP">326 - Dieppe (DPP)</option>
-                      <option value="DAR">339 - Dartmouth (DAR)</option>
-                      <option value="EPA">340 - Eastern Passage (EPA)</option>
-                      <option value="WPG">433 - Winnipeg (WPG)</option>
-                      <option value="REG">434 - Regina (REG)</option>
-                      <option value="CAL">435 - Calgary (CAL)</option>
-                      <option value="LAN">436 - Langley (LAN)</option>
-                      <option value="MAC">438 - Macklin (MAC)</option>
-                      <option value="EDM">439 - Edmonton (EDM)</option>
-                      <option value="CLA">450 - Clairmont (CLA)</option>
-                      <option value="ACH">451 - Acheson (ACH)</option>
-                      <option value="SHP">452 - Sheppard (SHP)</option>
-                      <option value="ASH">453 - Ashcroft (ASH)</option>
-                    </select>
-                  </div>
-
                   <div className="flex gap-3 justify-center">
                     <button
                       onClick={() => setPromptStyle("concise")}
