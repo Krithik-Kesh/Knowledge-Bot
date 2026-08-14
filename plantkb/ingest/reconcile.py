@@ -133,8 +133,8 @@ def reconcile(embed_fn) -> m.Diff:
         try:
             _ingest_source(collection, source, root, embed_fn)
         except Exception:
-            # A single unreadable/corrupt file (e.g. a truncated .docx that is
-            # not a valid ZIP) must not abort the whole run -- that's how a
+            # A single unreadable/corrupt file (e.g. a .docx that is
+            # not a valid ZIP) must not abort the whole run that's how a
             # partial ingest gets stranded with no manifest. Log it and carry
             # on; excluding it from the baseline below keeps it "added" so the
             # next run retries it instead of recording it as done.
@@ -152,4 +152,3 @@ def reconcile(embed_fn) -> m.Diff:
     return diff
 
 #python -m plantkb.ingest.reconcile
-

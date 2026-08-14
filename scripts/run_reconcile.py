@@ -34,6 +34,5 @@ def main() -> int:
         logging.exception("reconcile run failed")
         return 1
 
-
 if __name__ == "__main__":
     sys.exit(main())
